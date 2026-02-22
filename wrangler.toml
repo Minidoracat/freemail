@@ -13,7 +13,10 @@ database_id = "b28cf450-079d-4b4d-b3fb-fbe12db3b7c3" # 你的database_id
 # 环境变量
 [vars]
 # FORWARD_RULES="[{"prefix":"vip","email":"a@example.com"},{"prefix":"*","email":"2141083706@qq.com"}]"
-
+MAIL_DOMAIN = "placeholder"
+ADMIN_NAME = "placeholder"
+ADMIN_PASSWORD = "placeholder"
+JWT_TOKEN = "placeholder"
 
 # 静态资源目录（Workers + Assets）
 [assets]
@@ -30,6 +33,7 @@ bucket_name = "mail-eml"
 # wrangler.toml (wrangler v3.88.0^) 日志服务
 # [observability.logs]
 # enabled = true
+
 
 
 
