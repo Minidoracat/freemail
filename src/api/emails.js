@@ -120,6 +120,83 @@ export async function handleEmailsApi(request, db, url, path, options) {
     }
   }
 
+
+  // 批量删除邮件
+  if (path === '/api/emails/batch-delete' && request.method === 'POST') {
+    if (isMock) return errorResponse('演示模式不可删除', 403);
+    try {
+      const body = await request.json();
+      const ids = Array.isArray(body.ids) ? body.ids.map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n > 0) : [];
+      if (!ids.length) return errorResponse('缺少有效的邮件ID', 400);
+      if (ids.length > 100) return errorResponse('单次最多删除100封邮件', 400);
+
+      // mailbox 用户需要验证所有邮件都属于自己
+      if (isMailboxOnly) {
+        const payload = getJwtPayload(request, options);
+        const mailboxId = payload?.mailboxId;
+        if (mailboxId) {
+          const placeholders = ids.map(() => '?').join(',');
+          const { results } = await db.prepare(
+            `SELECT id FROM messages WHERE id IN (${placeholders}) AND mailbox_id != ?`
+          ).bind(...ids, mailboxId).all();
+          if (results && results.length > 0) {
+            return errorResponse('无权删除不属于自己的邮件', 403);
+          }
+        }
+      }
+
+      const placeholders = ids.map(() => '?').join(',');
+      const result = await db.prepare(`DELETE FROM messages WHERE id IN (${placeholders})`).bind(...ids).run();
+      const deletedCount = result?.meta?.changes || 0;
+
+      return Response.json({
+        success: true,
+        deletedCount
+      });
+    } catch (e) {
+      console.error('批量删除邮件失败:', e);
+      return errorResponse('批量删除失败', 500);
+    }
+  }
+
+  // 批量标记已读
+  if (path === '/api/emails/batch-read' && request.method === 'POST') {
+    if (isMock) return Response.json({ success: true, updatedCount: 0 });
+    try {
+      const body = await request.json();
+      const ids = Array.isArray(body.ids) ? body.ids.map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n > 0) : [];
+      if (!ids.length) return errorResponse('缺少有效的邮件ID', 400);
+      if (ids.length > 100) return errorResponse('单次最多操作100封邮件', 400);
+
+      // mailbox 用户需要验证所有邮件都属于自己
+      if (isMailboxOnly) {
+        const payload = getJwtPayload(request, options);
+        const mailboxId = payload?.mailboxId;
+        if (mailboxId) {
+          const placeholders = ids.map(() => '?').join(',');
+          const { results } = await db.prepare(
+            `SELECT id FROM messages WHERE id IN (${placeholders}) AND mailbox_id != ?`
+          ).bind(...ids, mailboxId).all();
+          if (results && results.length > 0) {
+            return errorResponse('无权操作不属于自己的邮件', 403);
+          }
+        }
+      }
+
+      const placeholders = ids.map(() => '?').join(',');
+      const result = await db.prepare(`UPDATE messages SET is_read = 1 WHERE id IN (${placeholders})`).bind(...ids).run();
+      const updatedCount = result?.meta?.changes || 0;
+
+      return Response.json({
+        success: true,
+        updatedCount
+      });
+    } catch (e) {
+      console.error('批量标记已读失败:', e);
+      return errorResponse('批量标记失败', 500);
+    }
+  }
+
   // 清空邮箱邮件
   if (request.method === 'DELETE' && path === '/api/emails') {
     if (isMock) return errorResponse('演示模式不可清空', 403);

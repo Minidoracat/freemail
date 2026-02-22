@@ -13,6 +13,7 @@ const showToast = window.showToast || ((msg, type) => console.log(`[${type}] ${m
 let currentUser = null, currentMailbox = null, emails = [], currentPage = 1;
 const pageSize = 20;
 let autoRefreshTimer = null, keyword = '';
+let selectedIds = new Set();
 
 // DOM 元素
 const els = {
@@ -52,7 +53,12 @@ const els = {
   searchBox: document.getElementById('search-box'),
   clearFilter: document.getElementById('clear-filter'),
   unreadCount: document.getElementById('unread-count'),
-  totalCount: document.getElementById('total-count')
+  totalCount: document.getElementById('total-count'),
+  batchToolbar: document.getElementById('batch-toolbar'),
+  selectAll: document.getElementById('select-all'),
+  batchSelectedCount: document.getElementById('batch-selected-count'),
+  batchMarkRead: document.getElementById('batch-mark-read'),
+  batchDelete: document.getElementById('batch-delete'),
 };
 
 // 动态导入 mock API（用于 guest 模式）
@@ -106,6 +112,8 @@ async function initAuth() {
 // 加载邮件列表
 async function loadEmails() {
   if (els.listLoading) els.listLoading.style.display = 'flex';
+  selectedIds.clear();
+  updateBatchToolbar();
   if (els.emailList) els.emailList.innerHTML = generateSkeletonList(5);
   
   try {
@@ -145,6 +153,17 @@ function renderEmails() {
     els.emailList.querySelectorAll('.email-item').forEach(item => {
       item.onclick = () => showEmail(item.dataset.emailId);
     });
+    bindEmailCheckboxes();
+    // 恢复勾选状态
+    els.emailList?.querySelectorAll('.email-checkbox').forEach(cb => {
+      const id = Number(cb.dataset.id);
+      if (selectedIds.has(id)) {
+        cb.checked = true;
+        const item = cb.closest('.email-item');
+        if (item) item.classList.add('batch-selected');
+      }
+    });
+    updateBatchToolbar();
     
     // 分页
     if (els.listPager) els.listPager.style.display = total > pageSize ? 'flex' : 'none';
@@ -348,8 +367,23 @@ els.emailModal?.addEventListener('click', e => { if (e.target === els.emailModal
 els.autoRefresh?.addEventListener('change', startAutoRefresh);
 els.refreshInterval?.addEventListener('change', startAutoRefresh);
 
-els.searchBox?.addEventListener('input', () => { keyword = els.searchBox.value; currentPage = 1; renderEmails(); });
+els.searchBox?.addEventListener('input', () => { keyword = els.searchBox.value; currentPage = 1; selectedIds.clear(); renderEmails(); });
 els.clearFilter?.addEventListener('click', () => { keyword = ''; if (els.searchBox) els.searchBox.value = ''; currentPage = 1; renderEmails(); });
+
+els.selectAll?.addEventListener('change', () => {
+  const checkboxes = els.emailList?.querySelectorAll('.email-checkbox') || [];
+  checkboxes.forEach(cb => {
+    const id = Number(cb.dataset.id);
+    cb.checked = els.selectAll.checked;
+    if (els.selectAll.checked) selectedIds.add(id); else selectedIds.delete(id);
+    const item = cb.closest('.email-item');
+    if (item) item.classList.toggle('batch-selected', els.selectAll.checked);
+  });
+  updateBatchToolbar();
+});
+
+els.batchDelete?.addEventListener('click', batchDeleteEmails);
+els.batchMarkRead?.addEventListener('click', batchMarkRead);
 
 els.changePasswordBtn?.addEventListener('click', () => {
   els.passwordModal?.classList.add('show');
@@ -380,6 +414,65 @@ els.logoutBtn?.addEventListener('click', async () => {
   stopAutoRefresh();
   location.replace('/html/login.html');
 });
+
+// 批量操作工具栏状态更新
+function updateBatchToolbar() {
+  if (els.batchToolbar) els.batchToolbar.style.display = selectedIds.size > 0 ? 'flex' : 'none';
+  if (els.batchSelectedCount) els.batchSelectedCount.textContent = `已选 ${selectedIds.size} 封`;
+  const checkboxes = els.emailList?.querySelectorAll('.email-checkbox') || [];
+  if (els.selectAll) {
+    els.selectAll.checked = checkboxes.length > 0 && selectedIds.size === checkboxes.length;
+    els.selectAll.indeterminate = selectedIds.size > 0 && selectedIds.size < checkboxes.length;
+  }
+}
+
+// 绑定邮件复选框事件
+function bindEmailCheckboxes() {
+  els.emailList?.querySelectorAll('.email-checkbox').forEach(cb => {
+    cb.onchange = () => {
+      const id = Number(cb.dataset.id);
+      if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+      const item = cb.closest('.email-item');
+      if (item) item.classList.toggle('batch-selected', cb.checked);
+      updateBatchToolbar();
+    };
+  });
+}
+
+// 批量删除
+async function batchDeleteEmails() {
+  if (!selectedIds.size) return;
+  if (!await showConfirm(`确定删除选中的 ${selectedIds.size} 封邮件？`)) return;
+  try {
+    const r = await api('/api/emails/batch-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from(selectedIds) })
+    });
+    if (!r.ok) throw new Error('batch delete failed');
+    showToast(`已删除 ${selectedIds.size} 封邮件`, 'success');
+    selectedIds.clear();
+    updateBatchToolbar();
+    loadEmails();
+  } catch(e) { showToast('批量删除失败', 'error'); }
+}
+
+// 批量标记已读
+async function batchMarkRead() {
+  if (!selectedIds.size) return;
+  try {
+    const r = await api('/api/emails/batch-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from(selectedIds) })
+    });
+    if (!r.ok) throw new Error('batch read failed');
+    showToast(`已标记 ${selectedIds.size} 封为已读`, 'success');
+    selectedIds.clear();
+    updateBatchToolbar();
+    loadEmails();
+  } catch(e) { showToast('标记已读失败', 'error'); }
+}
 
 // 全局函数
 window.deleteEmail = deleteEmail;

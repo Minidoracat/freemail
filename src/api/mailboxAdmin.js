@@ -64,6 +64,65 @@ export async function handleMailboxAdminApi(request, db, url, path, options) {
     }
   }
 
+
+  // 批量删除邮箱
+  if (path === '/api/mailboxes/batch-delete' && request.method === 'POST') {
+    if (isMock) return errorResponse('演示模式不可删除', 403);
+    if (!isStrictAdmin(request, options)) return errorResponse('Forbidden', 403);
+    try {
+      const body = await request.json();
+      const addresses = body.addresses || [];
+
+      if (!Array.isArray(addresses) || addresses.length === 0) {
+        return errorResponse('缺少 addresses 参数或地址列表为空', 400);
+      }
+      if (addresses.length > 100) {
+        return errorResponse('单次最多处理100个邮箱', 400);
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+      const results = [];
+
+      for (const raw of addresses) {
+        const addr = String(raw || '').trim().toLowerCase();
+        if (!addr) {
+          failCount++;
+          results.push({ address: raw, success: false, error: '地址为空' });
+          continue;
+        }
+        try {
+          const mailboxId = await getMailboxIdByAddress(db, addr);
+          if (!mailboxId) {
+            failCount++;
+            results.push({ address: addr, success: false, error: '邮箱不存在' });
+            continue;
+          }
+          await db.prepare('DELETE FROM messages WHERE mailbox_id = ?').bind(mailboxId).run();
+          await db.prepare('DELETE FROM mailboxes WHERE id = ?').bind(mailboxId).run();
+          invalidateMailboxCache(addr);
+          successCount++;
+          results.push({ address: addr, success: true });
+        } catch (e) {
+          failCount++;
+          results.push({ address: addr, success: false, error: '删除失败' });
+        }
+      }
+
+      invalidateSystemStatCache('total_mailboxes');
+
+      return Response.json({
+        success: true,
+        success_count: successCount,
+        fail_count: failCount,
+        total: addresses.length,
+        results
+      });
+    } catch (e) {
+      return errorResponse('批量删除失败: ' + e.message, 500);
+    }
+  }
+
   // 重置邮箱密码
   if (path === '/api/mailboxes/reset-password' && request.method === 'POST') {
     if (isMock) return Response.json({ success: true, mock: true });

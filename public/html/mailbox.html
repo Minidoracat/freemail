@@ -118,6 +118,21 @@
           <span>加载中…</span>
         </div>
       </div>
+      <div id="batch-toolbar" class="batch-toolbar" style="display:none">
+        <label class="batch-checkbox select-all-label">
+          <input type="checkbox" id="select-all" />
+          <span>全选</span>
+        </label>
+        <span id="batch-selected-count" class="batch-count">已选 0 封</span>
+        <div class="batch-toolbar-actions">
+          <button id="batch-mark-read" class="btn btn-ghost btn-sm" title="标记已读">
+            <span class="btn-icon">✉️</span><span>标记已读</span>
+          </button>
+          <button id="batch-delete" class="btn btn-danger btn-sm" title="批量删除">
+            <span class="btn-icon">🗑️</span><span>批量删除</span>
+          </button>
+        </div>
+      </div>
       <div class="list-viewport" style="position:relative;contain:layout paint;isolation:isolate;">
         <div id="email-list" class="list"></div>
         <div id="empty-state" class="empty-state" style="display:none">

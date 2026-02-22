@@ -59,6 +59,7 @@ export function renderEmailItem(email) {
   
   return `
     <div class="email-item ${isRead}" data-email-id="${id}">
+      <label class="batch-checkbox" onclick="event.stopPropagation()"><input type="checkbox" class="email-checkbox" data-id="${id}" /></label>
       <div class="email-header">
         <span class="email-sender" title="${escapeAttr(email.sender || '')}">${sender}</span>
         <span class="email-time">${receivedAt}</span>

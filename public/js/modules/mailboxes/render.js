@@ -68,6 +68,7 @@ export function renderCard(m) {
   
   return `
     <div class="mailbox-card" data-address="${addr}" data-id="${m.id}" data-action="jump">
+      <label class="batch-checkbox card-checkbox" onclick="event.stopPropagation()"><input type="checkbox" class="mailbox-checkbox" data-address="${addr}" data-id="${m.id}" /></label>
       ${m.is_pinned ? '<div class="pin-badge" title="置顶">📌</div>' : ''}
       ${m.is_favorite ? '<div class="favorite-badge" title="收藏">⭐</div>' : ''}
       ${forward ? `<div class="forward-badge" title="转发到: ${forward}">📤</div>` : ''}
@@ -96,6 +97,7 @@ export function renderListItem(m) {
   
   return `
     <div class="mailbox-list-item" data-address="${addr}" data-id="${m.id}">
+      <label class="batch-checkbox list-item-checkbox" onclick="event.stopPropagation()"><input type="checkbox" class="mailbox-checkbox" data-address="${addr}" data-id="${m.id}" /></label>
       <div class="pin-indicator">
         ${m.is_pinned ? '<span class="pin-icon">📌</span>' : '<span class="pin-placeholder"></span>'}
       </div>

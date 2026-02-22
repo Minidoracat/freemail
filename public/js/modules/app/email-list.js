@@ -168,25 +168,29 @@ export function renderEmailItem(email, isMobile = false) {
   const metaText = isSentView ? escapeHtml(recipientsDisplay) : senderText;
   const timeDisplay = isMobile ? formatTsMobile(e.received_at || e.created_at) : formatTs(e.received_at || e.created_at);
   
+  const checkboxHtml = isSentView ? '' : `<label class="batch-checkbox" onclick="event.stopPropagation()"><input type="checkbox" class="email-checkbox" data-id="${e.id}" /></label>`;
   return `
-    <div class="email-item clickable" onclick="${isSentView ? `showSentEmail(${e.id})` : `showEmail(${e.id})`}">
-      <div class="email-meta">
-        <span class="meta-from"><span class="meta-label">${metaLabel}</span><span class="meta-from-text">${metaText}</span></span>
-        <span class="email-time"><span class="time-icon">🕐</span>${timeDisplay}</span>
-      </div>
-      <div class="email-content">
-        <div class="email-main">
-          <div class="email-line"><span class="label-chip">主题</span><span class="value-text subject">${subjectText}</span></div>
-          <div class="email-line"><span class="label-chip">内容</span>${hasContent ? `<span class="email-preview value-text">${previewText}</span>` : '<span class="email-preview value-text" style="color:#94a3b8">(暂无预览)</span>'}</div>
+    <div class="email-item clickable" data-email-id="${e.id}">
+      ${checkboxHtml}
+      <div class="email-body" onclick="${isSentView ? `showSentEmail(${e.id})` : `showEmail(${e.id})`}">
+        <div class="email-meta">
+          <span class="meta-from"><span class="meta-label">${metaLabel}</span><span class="meta-from-text">${metaText}</span></span>
+          <span class="email-time"><span class="time-icon">🕐</span>${timeDisplay}</span>
         </div>
-        <div class="email-actions">
-          ${isSentView ? `
-            <span class="status-badge ${statusClass(e.status)}">${e.status || 'unknown'}</span>
-            <button class="btn btn-danger btn-sm" onclick="deleteSent(${e.id});event.stopPropagation()" title="删除记录"><span class="btn-icon">🗑️</span></button>
-          ` : `
-            <button class="btn btn-secondary btn-sm" data-code="${listCode || ''}" onclick="copyFromList(event, ${e.id});event.stopPropagation()" title="复制内容或验证码"><span class="btn-icon">📋</span></button>
-            <button class="btn btn-danger btn-sm" onclick="deleteEmail(${e.id});event.stopPropagation()" title="删除邮件"><span class="btn-icon">🗑️</span></button>
-          `}
+        <div class="email-content">
+          <div class="email-main">
+            <div class="email-line"><span class="label-chip">主题</span><span class="value-text subject">${subjectText}</span></div>
+            <div class="email-line"><span class="label-chip">内容</span>${hasContent ? `<span class="email-preview value-text">${previewText}</span>` : '<span class="email-preview value-text" style="color:#94a3b8">(暂无预览)</span>'}</div>
+          </div>
+          <div class="email-actions">
+            ${isSentView ? `
+              <span class="status-badge ${statusClass(e.status)}">${e.status || 'unknown'}</span>
+              <button class="btn btn-danger btn-sm" onclick="deleteSent(${e.id});event.stopPropagation()" title="删除记录"><span class="btn-icon">🗑️</span></button>
+            ` : `
+              <button class="btn btn-secondary btn-sm" data-code="${listCode || ''}" onclick="copyFromList(event, ${e.id});event.stopPropagation()" title="复制内容或验证码"><span class="btn-icon">📋</span></button>
+              <button class="btn btn-danger btn-sm" onclick="deleteEmail(${e.id});event.stopPropagation()" title="删除邮件"><span class="btn-icon">🗑️</span></button>
+            `}
+          </div>
         </div>
       </div>
     </div>`;
@@ -239,6 +243,15 @@ export function clearViewLoaded() {
   viewLoaded.clear();
 }
 
+
+/**
+ * 获取最后加载的邮件列表
+ * @returns {Array}
+ */
+export function getLastLoadedEmails() {
+  return lastLoadedEmails;
+}
+
 export default {
   renderPager,
   sliceByPage,
@@ -254,5 +267,6 @@ export default {
   clearEmailCache,
   markViewLoaded,
   isFirstLoad,
-  clearViewLoaded
+  clearViewLoaded,
+  getLastLoadedEmails
 };
